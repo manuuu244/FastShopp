@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="pt-BR" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FASTSHOP - Comparador Inteligente</title>
+    <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
+        * { font-family: 'Poppins', sans-serif; }
+        body { box-sizing: border-box; }
+        
+        .gradient-header { background: linear-gradient(135deg, #d53f8c 0%, #805ad5 100%); }
+        .product-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .product-card:hover { transform: translateY(-5px); box-shadow: 0 15px 30px rgba(213, 63, 140, 0.15); }
+
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #d53f8c; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        .cart-badge { animation: pulse 0.5s ease-out; }
+        @keyframes pulse { 0% { transform: scale(1.3); } 100% { transform: scale(1); } }
+        
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
+        /* Estilos do Chat da IA */
+        .chat-bubble-ai { background: #f3f4f6; color: #1f2937; border-radius: 1rem 1rem 1rem 0; padding: 10px 14px; max-width: 85%; width: fit-content; }
+        .chat-bubble-user { background: #d53f8c; color: white; border-radius: 1rem 1rem 0 1rem; padding: 10px 14px; max-width: 85%; width: fit-content; margin-left: auto; }
+        .typing-indicator span { display: inline-block; width: 6px; height: 6px; background-color: #9ca3af; border-radius: 50%; margin: 0 2px; animation: typing 1.4s infinite both; }
+        .typing-indicator span:nth-child(1) { animation-delay: 0s; }
+        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typing { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
+    </style>
+</head>
+<body class="bg-gray-50 h-full relative">
+    <div class="w-full min-h-screen flex flex-col bg-gray-50 overflow-auto">
+        
+        <header class="gradient-header text-white sticky top-0 z-50 shadow-lg">
+            <div class="max-w-6xl mx-auto px-4 py-4">
+                <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+                    <div class="flex items-center gap-3 cursor-pointer" onclick="toggleView('home')">
+                        <i data-lucide="zap" class="w-8 h-8 text-yellow-300"></i>
+                        <div>
+                            <h1 class="text-3xl font-bold tracking-tight">FASTSHOP</h1>
+                            <p class="text-xs opacity-90">Comparador Inteligente & Cashback</p>
+                        </div>
+                    </div>
+                    
+                    <div class="relative w-full md:w-96 text-gray-800" id="search-container">
+                        <input type="text" id="search-input" placeholder="Buscar em mais de 100 produtos..." class="w-full px-4 py-2.5 rounded-full border-none shadow-inner focus:ring-2 focus:ring-pink-400 outline-none text-sm font-medium transition-all">
+                        <i data-lucide="search" class="absolute right-4 top-2.5 w-5 h-5 text-gray-400"></i>
+                    </div>
+
+                    <div class="flex items-center gap-4">
+                        <button onclick="toggleView('profile')" class="hidden sm:flex items-center gap-2 hover:text-yellow-300 transition text-sm font-semibold opacity-90">
+                            <i data-lucide="user" class="w-5 h-5"></i> Meu Perfil
+                        </button>
+                        <button id="cart-btn" class="relative bg-white bg-opacity-20 hover:bg-opacity-30 px-4 py-2 rounded-xl transition flex items-center gap-2 shadow-sm"> 
+                            <i data-lucide="shopping-cart" class="w-6 h-6"></i> 
+                            <span id="cart-count" class="absolute -top-2 -right-2 bg-yellow-400 text-purple-900 text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center shadow-md">0</span> 
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main id="view-home" class="flex-1 max-w-6xl mx-auto w-full px-4 py-8">
+            <div class="mb-8 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between" id="filters-container">
+                <div class="flex gap-2 flex-wrap flex-1">
+                    <button class="filter-btn px-4 py-2 rounded-full bg-pink-600 text-white font-semibold transition shadow-sm text-sm" data-category="all">Todas as Ofertas</button> 
+                    <button class="filter-btn px-4 py-2 rounded-full bg-white border border-gray-200 text-gray-700 hover:bg-pink-50 transition text-sm shadow-sm" data-category="tech">Tecnologia</button> 
+                    <button class="filter-btn px-4 py-2 rounded-full bg-white border border-gray-200 text-gray-700 hover:bg-pink-50 transition text-sm shadow-sm" data-category="fashion">Moda</button> 
+                    <button class="filter-btn px-4 py-2 rounded-full bg-white border border-gray-200 text-gray-700 hover:bg-pink-50 transition text-sm shadow-sm" data-category="home">Casa</button>
+                </div>
+                
+                <div class="flex items-center gap-3 w-full md:w-auto">
+                    <div class="relative w-full md:w-48">
+                        <select id="sort-select" class="w-full appearance-none bg-white border border-gray-200 text-gray-700 py-2 pl-4 pr-10 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-400 text-sm font-medium cursor-pointer">
+                            <option value="default">Relevância</option>
+                            <option value="priceAsc">Menor Preço</option>
+                            <option value="priceDesc">Maior Preço</option>
+                            <option value="cashbackDesc">Maior Cashback</option>
+                        </select>
+                        <i data-lucide="chevron-down" class="absolute right-3 top-2.5 w-4 h-4 text-gray-400 pointer-events-none"></i>
+                    </div>
+                    <div class="text-sm text-gray-500 font-medium hidden lg:block whitespace-nowrap" id="product-counter"></div>
+                </div>
+            </div>
+            
+            <div id="loading-state" class="flex flex-col justify-center items-center py-20 hidden">
+                <div class="loader mb-4"></div>
+                <p class="text-gray-500 font-medium">Analisando preços em tempo real...</p>
+            </div>
+
+            <div id="products-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div>
+        </main>
+
+        <main id="view-product" class="flex-1 max-w-6xl mx-auto w-full px-4 py-8 hidden">
+            <button onclick="toggleView('home')" class="mb-6 flex items-center gap-2 text-pink-600 hover:text-pink-800 font-semibold transition-colors">
+                <i data-lucide="arrow-left" class="w-5 h-5"></i> Voltar para a loja
+            </button>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div class="lg:col-span-2 space-y-6">
+                    <div class="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 flex flex-col md:flex-row gap-8 items-center md:items-start">
+                        <div id="pd-icon" class="w-48 h-48 bg-gray-50 rounded-2xl flex items-center justify-center text-7xl flex-shrink-0 border border-gray-100 shadow-inner">
+                            📱
+                        </div>
+                        <div class="flex-1 w-full text-center md:text-left">
+                            <div class="flex items-center justify-center md:justify-start gap-2 mb-2">
+                                <span id="pd-category" class="bg-pink-100 text-pink-700 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">Tecnologia</span>
+                                <span id="pd-premium" class="bg-gradient-to-r from-purple-600 to-pink-500 text-white text-xs font-bold px-3 py-1 rounded-full hidden">Premium</span>
+                            </div>
+                            <h2 id="pd-name" class="text-3xl font-bold text-gray-800 mb-2">Nome do Produto</h2>
+                            <p class="text-gray-500 text-sm mb-6"><i data-lucide="check-circle" class="w-4 h-4 inline text-green-500"></i> Em estoque em <span id="pd-stores" class="font-bold">5</span> lojas parceiras.</p>
+                            
+                            <div class="bg-gray-50 p-5 rounded-2xl border border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-4">
+                                <div class="text-center sm:text-left">
+                                    <p class="text-gray-500 text-sm font-medium">Melhor preço encontrado</p>
+                                    <p id="pd-price" class="text-4xl font-extrabold text-pink-600">R$ 0,00</p>
+                                    <p id="pd-cashback" class="text-sm font-bold text-green-600 mt-1 bg-green-100 px-2 py-0.5 rounded inline-block">+ R$ 0,00 de Cashback</p>
+                                </div>
+                                <button id="pd-add-btn" class="w-full sm:w-auto bg-gray-900 hover:bg-pink-600 text-white px-8 py-4 rounded-xl font-bold transition-all shadow-md flex items-center justify-center gap-2">
+                                    <i data-lucide="shopping-cart" class="w-5 h-5"></i> Adicionar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
+                        <h3 class="text-xl font-bold text-gray-800 mb-4 border-b pb-4 flex items-center gap-2"><i data-lucide="info" class="text-pink-600"></i> Descrição e Ficha Técnica</h3>
+                        <p class="text-gray-600 leading-relaxed mb-6" id="pd-desc">
+                            Este é um excelente produto, selecionado pelo nosso algoritmo por possuir o melhor custo-benefício do mercado atualmente. Ideal para o seu dia a dia, combinando qualidade, durabilidade e uma excelente taxa de retorno (cashback) para a sua carteira digital.
+                        </p>
+                        <div class="grid grid-cols-2 gap-4 text-sm">
+                            <div class="bg-gray-50 p-3 rounded-lg"><span class="text-gray-500 block text-xs">Garantia</span><span class="font-semibold text-gray-800">12 meses</span></div>
+                            <div class="bg-gray-50 p-3 rounded-lg"><span class="text-gray-500 block text-xs">Condição</span><span class="font-semibold text-gray-800">Novo / Lacrado</span></div>
+                            <div class="bg-gray-50 p-3 rounded-lg"><span class="text-gray-500 block text-xs">Frete Expresso</span><span class="font-semibold text-green-600">Disponível</span></div>
+                            <div class="bg-gray-50 p-3 rounded-lg"><span class="text-gray-500 block text-xs">Avaliação do Algoritmo</span><span class="font-semibold text-pink-600">★★★★★ (9.8/10)</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-3xl shadow-sm border border-purple-200 flex flex-col h-[600px] overflow-hidden sticky top-24">
+                    <div class="bg-gradient-to-r from-purple-600 to-pink-600 p-4 text-white flex justify-between items-center">
+                        <div class="flex items-center gap-3">
+                            <div class="bg-white p-2 rounded-full text-purple-600"><i data-lucide="bot" class="w-6 h-6"></i></div>
+                            <div>
+                                <h3 class="font-bold leading-tight">FastBot IA</h3>
+                                <p class="text-[10px] opacity-90 uppercase tracking-widest flex items-center gap-1"><span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span> Online</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="ai-chat-box" class="flex-1 p-5 overflow-y-auto space-y-4 bg-gray-50 flex flex-col">
+                        </div>
+
+                    <div class="p-4 bg-white border-t border-gray-100">
+                        <form id="ai-form" class="flex gap-2 relative">
+                            <input type="text" id="ai-input" placeholder="Pergunte sobre este item..." autocomplete="off" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 pr-12 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all">
+                            <button type="submit" class="absolute right-2 top-2 bottom-2 bg-purple-600 hover:bg-purple-700 text-white w-9 rounded-lg flex items-center justify-center transition-colors">
+                                <i data-lucide="send" class="w-4 h-4"></i>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <main id="view-profile" class="flex-1 max-w-4xl mx-auto w-full px-4 py-8 hidden">
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mb-8 flex flex-col md:flex-row items-center gap-6">
+                <div class="w-24 h-24 bg-gradient-to-tr from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white text-3xl font-bold shadow-lg">JS</div>
+                <div class="flex-1 text-center md:text-left">
+                    <h2 class="text-2xl font-bold text-gray-800">Tiririca da Silva</h2>
+                    <p class="text-gray-500 mb-2">Membro desde 2026</p>
+                    <span class="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-1 w-max mx-auto md:mx-0">
+                        <i data-lucide="crown" class="w-4 h-4"></i> Cliente Premium
+                    </span>
+                </div>
+                <div class="bg-green-50 border border-green-100 p-5 rounded-xl text-center min-w-[220px]">
+                    <p class="text-green-800 text-sm font-semibold mb-1">Saldo de Cashback</p>
+                    <p id="user-wallet" class="text-3xl font-extrabold text-green-600 mb-3">R$ 0,00</p>
+                    <button onclick="openPixModal()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors shadow-sm">
+                        <i data-lucide="send" class="w-4 h-4"></i> Sacar PIX
+                    </button>
+                </div>
+            </div>
+            <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2"><i data-lucide="activity" class="text-purple-600"></i> Histórico de Movimentações</h3>
+            <div id="order-history" class="space-y-4"></div>
+        </main>
+
+        <div id="cart-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
+            <div class="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+                <div class="flex justify-between items-center p-6 border-b bg-gray-50">
+                    <h2 class="text-xl font-bold flex items-center gap-2 text-gray-800"><i data-lucide="shopping-cart" class="text-pink-600"></i> Carrinho</h2>
+                    <button id="close-cart" class="text-gray-400 hover:text-gray-700 bg-gray-200 hover:bg-gray-300 p-2 rounded-full transition"> <i data-lucide="x" class="w-5 h-5"></i> </button>
+                </div>
+                <div id="cart-items" class="flex-1 overflow-auto p-6 bg-white"></div>
+                <div class="border-t p-6 bg-gray-50">
+                    <div class="flex justify-between mb-2 items-center"><span class="text-sm font-semibold text-gray-600">Cashback da Compra:</span> <span id="cart-cashback" class="text-sm font-bold text-green-600 bg-green-100 px-2 py-1 rounded">R$ 0,00</span></div>
+                    <div class="flex justify-between mb-6 items-end mt-4"><span class="text-gray-600 font-semibold">Total a pagar:</span> <span id="cart-total" class="text-3xl font-bold text-pink-600">R$ 0,00</span></div>
+                    <button id="checkout-btn" class="w-full bg-gradient-to-r from-pink-600 to-purple-600 text-white py-3.5 rounded-xl font-bold hover:shadow-lg hover:opacity-90 transition flex justify-center items-center gap-2 text-lg">Finalizar Compra <i data-lucide="check-circle" class="w-5 h-5"></i></button>
+                </div>
+            </div>
+        </div>
+
+        <div id="pix-modal" class="fixed inset-0 bg-black bg-opacity-60 hidden z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
+            <div class="bg-white rounded-2xl max-w-sm w-full shadow-2xl overflow-hidden transform transition-all">
+                <div class="bg-green-600 p-5 text-white flex justify-between items-center">
+                    <h3 class="font-bold text-lg flex items-center gap-2"><i data-lucide="banknote" class="w-5 h-5"></i> Resgate via PIX</h3>
+                    <button onclick="closePixModal()" class="text-white hover:text-green-200 transition"><i data-lucide="x" class="w-5 h-5"></i></button>
+                </div>
+                <div class="p-6">
+                    <p class="text-sm text-gray-500 mb-1">Saldo Disponível:</p><p id="pix-available" class="text-2xl font-bold text-green-600 mb-6">R$ 0,00</p>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Chave PIX</label><input type="text" id="pix-key" class="w-full border border-gray-300 rounded-lg px-4 py-2.5 mb-4 outline-none focus:ring-2 focus:ring-green-500 text-sm">
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Valor a sacar (R$)</label><input type="number" id="pix-amount" placeholder="0.00" min="0" step="0.01" class="w-full border border-gray-300 rounded-lg px-4 py-2.5 mb-6 outline-none focus:ring-2 focus:ring-green-500 text-sm">
+                    <button onclick="processPix()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl transition shadow-md">Confirmar Transferência</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="toast" class="fixed bottom-6 right-6 hidden bg-gray-900 text-white px-6 py-4 rounded-xl shadow-2xl z-[70] flex items-center gap-3 transform transition-all duration-300 translate-y-10 opacity-0">
+            <div class="bg-green-500 rounded-full p-1 text-black"><i data-lucide="check" class="w-4 h-4 font-bold"></i></div><span id="toast-msg" class="font-medium text-sm"></span>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // 1. UTILITÁRIOS & BANCO DE DADOS
+        // ==========================================
+        const Format = { currency: (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v), date: (d) => new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) };
+        const debounce = (f, d) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => f.apply(this, a), d); }; };
+
+        function generateDatabase() {
+            const categories = {
+                tech: { names: ['Smartphone', 'Smart TV 4K', 'Notebook', 'Tablet', 'Monitor', 'Fone Bluetooth'], brands: ['Apple', 'Samsung', 'LG', 'Dell', 'Sony'], icon: '💻' },
+                fashion: { names: ['Tênis de Corrida', 'Jaqueta', 'Calça Jeans', 'Camiseta', 'Mochila'], brands: ['Nike', 'Adidas', 'Puma', 'Vans', 'Levi\'s'], icon: '👕' },
+                home: { names: ['Cafeteira Expresso', 'Air Fryer', 'Robô Aspirador', 'Micro-ondas'], brands: ['Electrolux', 'Mondial', 'Philips', 'Oster'], icon: '🏠' }
+            };
+            const db = [];
+            for (let i = 1; i <= 120; i++) {
+                const keys = Object.keys(categories); const cat = keys[Math.floor(Math.random() * keys.length)]; const data = categories[cat];
+                const price = Math.floor(Math.random() * 4000) + 99.90; const isPremium = Math.random() > 0.7;
+                db.push({ id: String(i), name: `${data.names[Math.floor(Math.random() * data.names.length)]} ${data.brands[Math.floor(Math.random() * data.brands.length)]}`, price: price, cashback: price * (isPremium ? 0.10 : 0.05), stores: Math.floor(Math.random() * 8) + 2, category: cat, isPremium: isPremium, icon: data.icon });
+            }
+            return db;
+        }
+        const DATABASE_PRODUCTS = generateDatabase();
+
+        // ==========================================
+        // 2. ESTADO GLOBAL
+        // ==========================================
+        const AppState = {
+            products: [], cart: JSON.parse(localStorage.getItem('@FastShop:cart')) || [], user: JSON.parse(localStorage.getItem('@FastShop:user')) || { name: "João Silva", wallet: 0.00, orderHistory: [] },
+            currentCategory: 'all', searchQuery: '', sortBy: 'default',
+            currentProduct: null // Produto atualmente aberto na View de Detalhes
+        };
+
+        function saveState() { localStorage.setItem('@FastShop:cart', JSON.stringify(AppState.cart)); localStorage.setItem('@FastShop:user', JSON.stringify(AppState.user)); }
+
+        // ==========================================
+        // 3. NAVEGAÇÃO E RENDERIZAÇÃO
+        // ==========================================
+        document.addEventListener('DOMContentLoaded', () => { lucide.createIcons(); setupEventListeners(); loadAndRenderProducts(); updateCartBadge(); renderProfile(); });
+
+        function toggleView(view) {
+            ['view-home', 'view-profile', 'view-product'].forEach(v => document.getElementById(v).classList.add('hidden'));
+            document.getElementById(`view-${view}`).classList.remove('hidden');
+            
+            const searchContainer = document.getElementById('search-container');
+            if (view === 'home') {
+                searchContainer.classList.remove('opacity-0', 'pointer-events-none');
+                window.scrollTo(0,0);
+            } else {
+                searchContainer.classList.add('opacity-0', 'pointer-events-none');
+                if(view === 'profile') renderProfile();
+            }
+        }
+
+        async function loadAndRenderProducts() {
+            document.getElementById('products-container').innerHTML = ''; document.getElementById('loading-state').classList.remove('hidden');
+            setTimeout(() => {
+                let result = [...DATABASE_PRODUCTS];
+                if (AppState.currentCategory !== 'all') result = result.filter(p => p.category === AppState.currentCategory);
+                if (AppState.searchQuery.trim()) result = result.filter(p => p.name.toLowerCase().includes(AppState.searchQuery.toLowerCase()));
+                
+                if (AppState.sortBy === 'priceAsc') result.sort((a, b) => a.price - b.price);
+                else if (AppState.sortBy === 'priceDesc') result.sort((a, b) => b.price - a.price);
+                else if (AppState.sortBy === 'cashbackDesc') result.sort((a, b) => b.cashback - a.cashback);
+
+                AppState.products = result; document.getElementById('loading-state').classList.add('hidden');
+                document.getElementById('product-counter').textContent = `${result.length} produtos`; renderProductsUI();
+            }, 300);
+        }
+
+        function renderProductsUI() {
+            const container = document.getElementById('products-container');
+            if (AppState.products.length === 0) return container.innerHTML = `<div class="col-span-full py-16 text-center text-gray-400">Nenhum produto encontrado.</div>`;
+            container.innerHTML = AppState.products.map(product => `
+                <div class="product-card bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden relative flex flex-col h-full group">
+                    ${product.isPremium ? `<span class="absolute top-3 left-3 bg-gradient-to-r from-purple-600 to-pink-500 text-white text-[10px] uppercase font-bold px-2 py-1 rounded shadow-sm z-10">Premium</span>` : ''}
+                    
+                    <div class="cursor-pointer flex-1 flex flex-col" onclick="openProductDetails('${product.id}')">
+                        <div class="h-40 bg-gray-50 flex items-center justify-center text-5xl group-hover:bg-pink-50 transition-colors">${product.icon}</div>
+                        <div class="p-5 flex flex-col flex-1">
+                            <div class="text-xs text-gray-400 mb-2"><i data-lucide="store" class="w-3 h-3 inline"></i> ${product.stores} lojas analisadas</div>
+                            <h3 class="font-bold text-gray-800 text-sm leading-snug mb-3 flex-1 group-hover:text-pink-600 transition-colors">${product.name}</h3>
+                            <div class="bg-green-50 text-green-700 text-xs font-bold px-2 py-1 rounded-md mb-2 w-max">Cashback: ${Format.currency(product.cashback)}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="px-5 pb-5 pt-2 border-t border-gray-50 flex justify-between items-end">
+                        <span class="text-xl font-extrabold text-pink-600">${Format.currency(product.price)}</span>
+                        <button onclick="addToCart('${product.id}')" class="bg-gray-900 hover:bg-pink-600 text-white p-2.5 rounded-xl transition-colors z-20 relative"><i data-lucide="shopping-cart" class="w-5 h-5"></i></button>
+                    </div>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        // ==========================================
+        // 4. NOVA VIEW: DETALHES DO PRODUTO & IA
+        // ==========================================
+        function openProductDetails(id) {
+            const product = DATABASE_PRODUCTS.find(p => p.id === id);
+            if (!product) return;
+            AppState.currentProduct = product;
+
+            // Preencher HTML
+            document.getElementById('pd-icon').textContent = product.icon;
+            document.getElementById('pd-name').textContent = product.name;
+            document.getElementById('pd-category').textContent = product.category === 'tech' ? 'Tecnologia' : product.category === 'fashion' ? 'Moda' : 'Casa';
+            document.getElementById('pd-stores').textContent = product.stores;
+            document.getElementById('pd-price').textContent = Format.currency(product.price);
+            document.getElementById('pd-cashback').textContent = `+ ${Format.currency(product.cashback)} de Cashback`;
+            
+            const premiumBadge = document.getElementById('pd-premium');
+            if(product.isPremium) premiumBadge.classList.remove('hidden'); else premiumBadge.classList.add('hidden');
+
+            // Configurar botão de adicionar do detalhe
+            const btn = document.getElementById('pd-add-btn');
+            btn.onclick = () => addToCart(product.id);
+
+            // Iniciar o Chat da IA
+            initAIChat(product);
+
+            toggleView('product');
+            window.scrollTo(0,0);
+        }
+
+        function initAIChat(product) {
+            const chatBox = document.getElementById('ai-chat-box');
+            chatBox.innerHTML = ''; // Limpa chat anterior
+            
+            // Mensagem de boas vindas baseada no produto
+            setTimeout(() => {
+                appendAIMessage(`Olá! Sou o FastBot. Vi que você está de olho no **${product.name}**. Notei que ele tem um ótimo cashback de **${Format.currency(product.cashback)}**! O que você gostaria de saber sobre ele?`);
+            }, 400);
+        }
+
+        document.getElementById('ai-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const input = document.getElementById('ai-input');
+            const msg = input.value.trim();
+            if(!msg) return;
+
+            appendUserMessage(msg);
+            input.value = '';
+
+            // Mostrar "digitando..."
+            const typingId = appendTypingIndicator();
+
+            // Simular IA processando a resposta (focada no produto atual)
+            setTimeout(() => {
+                document.getElementById(typingId).remove();
+                generateAIResponse(msg, AppState.currentProduct);
+            }, 1200 + Math.random() * 1000);
+        });
+
+        function appendUserMessage(text) {
+            const box = document.getElementById('ai-chat-box');
+            box.insertAdjacentHTML('beforeend', `<div class="chat-bubble-user shadow-sm text-sm">${text}</div>`);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function appendAIMessage(text) {
+            const box = document.getElementById('ai-chat-box');
+            // Converter markdown simples (bold) para HTML
+            const formattedText = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            box.insertAdjacentHTML('beforeend', `<div class="chat-bubble-ai shadow-sm text-sm border border-gray-100">${formattedText}</div>`);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function appendTypingIndicator() {
+            const box = document.getElementById('ai-chat-box');
+            const id = 'typing-' + Date.now();
+            box.insertAdjacentHTML('beforeend', `<div id="${id}" class="chat-bubble-ai shadow-sm border border-gray-100 py-3"><div class="typing-indicator"><span></span><span></span><span></span></div></div>`);
+            box.scrollTop = box.scrollHeight;
+            return id;
+        }
+
+        function generateAIResponse(userMessage, product) {
+            const msg = userMessage.toLowerCase();
+            let response = "";
+
+            if (msg.includes('frete') || msg.includes('entrega')) {
+                response = `Para o **${product.name}**, a maioria das nossas lojas parceiras (são ${product.stores} no total) oferece frete grátis para as capitais.`;
+            } else if (msg.includes('garantia') || msg.includes('quebrar')) {
+                response = `Sim! Ele possui 12 meses de garantia direto com a fabricante. O processo de troca é super tranquilo.`;
+            } else if (msg.includes('caro') || msg.includes('desconto')) {
+                response = `O preço de ${Format.currency(product.price)} já é o menor que encontrei hoje. Lembre-se que você recebe **${Format.currency(product.cashback)} de volta** direto na sua carteira FastShop!`;
+            } else if (msg.includes('bom') || msg.includes('vale a pena')) {
+                response = `Definitivamente. É um dos itens mais buscados da nossa categoria de ${product.category === 'tech' ? 'Tecnologia' : 'produtos'}. E a taxa de aprovação dos usuários é altíssima.`;
+            } else {
+                const genericResponses = [
+                    `Boa pergunta! Como sou uma IA focada em preços, posso te confirmar que comparamos esse valor em ${product.stores} sites diferentes e este é o melhor negócio.`,
+                    `Posso te ajudar a colocar o **${product.name}** no carrinho, se quiser! O preço dele está excelente hoje.`,
+                    `Essa característica varia um pouco dependendo do lote, mas no geral, a qualidade dessa marca costuma ser muito elogiada pelos nossos clientes.`
+                ];
+                response = genericResponses[Math.floor(Math.random() * genericResponses.length)];
+            }
+            appendAIMessage(response);
+        }
+
+        // ==========================================
+        // 5. CARRINHO E PIX (MANTIDOS E COMPACTADOS)
+        // ==========================================
+        function addToCart(productId) {
+            const product = DATABASE_PRODUCTS.find(p => p.id === productId);
+            const existing = AppState.cart.find(item => item.id === productId);
+            if (existing) existing.quantity += 1; else AppState.cart.push({ ...product, quantity: 1 });
+            saveState(); updateCartBadge(); showToast(`Adicionado: ${product.name}`);
+        }
+        function removeFromCart(productId) { AppState.cart = AppState.cart.filter(item => item.id !== productId); saveState(); updateCartBadge(); renderCartUI(); }
+        function updateCartBadge() { document.getElementById('cart-count').textContent = AppState.cart.reduce((sum, item) => sum + item.quantity, 0); }
+        function renderCartUI() {
+            const container = document.getElementById('cart-items');
+            if (AppState.cart.length === 0) { container.innerHTML = `<p class="text-center text-gray-500 py-10">Carrinho vazio.</p>`; document.getElementById('cart-total').textContent = 'R$ 0,00'; document.getElementById('cart-cashback').textContent = 'R$ 0,00'; return; }
+            container.innerHTML = AppState.cart.map(item => `<div class="flex justify-between items-center mb-4 pb-4 border-b border-gray-100"><div class="flex-1 pr-4"><p class="font-semibold text-sm">${item.name}</p><p class="text-xs text-green-600 font-bold">+ ${Format.currency(item.cashback * item.quantity)}</p></div><div class="flex items-center gap-4"><div class="text-right"><p class="font-bold">${Format.currency(item.price * item.quantity)}</p><p class="text-xs text-gray-500">Qtd: ${item.quantity}</p></div><button onclick="removeFromCart('${item.id}')" class="text-red-400 p-2"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div></div>`).join('');
+            const totalValue = AppState.cart.reduce((sum, item) => sum + (item.price * item.quantity), 0); const totalCashback = AppState.cart.reduce((sum, item) => sum + (item.cashback * item.quantity), 0);
+            document.getElementById('cart-total').textContent = Format.currency(totalValue); document.getElementById('cart-cashback').textContent = `+ ${Format.currency(totalCashback)}`; lucide.createIcons();
+        }
+        function processCheckout() {
+            if (AppState.cart.length === 0) return showToast("Adicione produtos primeiro!");
+            const totalValue = AppState.cart.reduce((sum, item) => sum + (item.price * item.quantity), 0); const totalCashback = AppState.cart.reduce((sum, item) => sum + (item.cashback * item.quantity), 0);
+            AppState.user.orderHistory.unshift({ id: `PED-${Math.floor(Math.random() * 100000)}`, date: new Date().toISOString(), type: 'purchase', total: totalValue, cashback: totalCashback, items: [...AppState.cart] });
+            AppState.user.wallet += totalCashback; AppState.cart = []; saveState(); updateCartBadge(); document.getElementById('cart-modal').classList.add('hidden'); showToast("Compra Aprovada! Cashback adicionado."); setTimeout(() => toggleView('profile'), 1500);
+        }
+        function openPixModal() { document.getElementById('pix-available').textContent = Format.currency(AppState.user.wallet); document.getElementById('pix-amount').value = AppState.user.wallet.toFixed(2); document.getElementById('pix-modal').classList.remove('hidden'); }
+        function closePixModal() { document.getElementById('pix-modal').classList.add('hidden'); document.getElementById('pix-key').value = ''; }
+        function processPix() {
+            const key = document.getElementById('pix-key').value.trim(); const amount = parseFloat(document.getElementById('pix-amount').value);
+            if (!key) return showToast("Por favor, informe sua chave PIX."); if (isNaN(amount) || amount <= 0) return showToast("Informe um valor válido."); if (amount > AppState.user.wallet) return showToast("Saldo insuficiente para o resgate.");
+            AppState.user.wallet -= amount; AppState.user.orderHistory.unshift({ id: `PIX-${Math.floor(Math.random() * 100000)}`, date: new Date().toISOString(), type: 'withdrawal', total: amount, pixKey: key });
+            saveState(); renderProfile(); closePixModal(); showToast(`Saque de ${Format.currency(amount)} enviado para a chave!`);
+        }
+        function renderProfile() {
+            document.getElementById('user-wallet').textContent = Format.currency(AppState.user.wallet); const historyContainer = document.getElementById('order-history');
+            if (AppState.user.orderHistory.length === 0) return historyContainer.innerHTML = `<div class="bg-white p-8 rounded-2xl border text-center text-gray-500">Nenhuma movimentação.</div>`;
+            historyContainer.innerHTML = AppState.user.orderHistory.map(record => {
+                if (record.type === 'purchase') return `<div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm"><div class="flex justify-between items-center mb-4 border-b border-gray-50 pb-4"><div><span class="text-xs text-gray-400 font-mono">Compra #${record.id}</span><h4 class="font-bold text-gray-800">${Format.date(record.date)}</h4></div><div class="text-right"><p class="text-lg font-bold text-gray-900">${Format.currency(record.total)}</p><p class="text-sm font-bold text-green-600">+ ${Format.currency(record.cashback)} de volta</p></div></div><div class="flex flex-wrap gap-2">${record.items.map(item => `<span class="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded-md border border-gray-200">${item.quantity}x ${item.name}</span>`).join('')}</div></div>`;
+                else return `<div class="bg-green-50 p-6 rounded-2xl border border-green-100 shadow-sm"><div class="flex justify-between items-center"><div class="flex items-center gap-3"><div class="bg-green-200 p-2 rounded-full text-green-700"><i data-lucide="arrow-up-right" class="w-5 h-5"></i></div><div><span class="text-xs text-green-600 font-mono">Resgate #${record.id}</span><h4 class="font-bold text-green-800">Transferência PIX</h4></div></div><div class="text-right"><p class="text-lg font-bold text-green-700">- ${Format.currency(record.total)}</p><p class="text-xs text-green-600">Enviado com sucesso</p></div></div></div>`;
+            }).join(''); lucide.createIcons();
+        }
+
+        // ==========================================
+        // 6. EVENTOS GERAIS
+        // ==========================================
+        function setupEventListeners() {
+            document.getElementById('search-input').addEventListener('input', debounce((e) => { AppState.searchQuery = e.target.value; loadAndRenderProducts(); }, 300));
+            document.querySelectorAll('.filter-btn').forEach(btn => { btn.addEventListener('click', (e) => { document.querySelectorAll('.filter-btn').forEach(b => { b.classList.remove("bg-pink-600", "text-white"); b.classList.add("bg-white", "text-gray-700"); }); e.target.classList.remove("bg-white", "text-gray-700"); e.target.classList.add("bg-pink-600", "text-white"); AppState.currentCategory = e.target.dataset.category; loadAndRenderProducts(); }); });
+            document.getElementById('sort-select').addEventListener('change', (e) => { AppState.sortBy = e.target.value; loadAndRenderProducts(); });
+            document.getElementById('cart-btn').addEventListener('click', () => { renderCartUI(); document.getElementById('cart-modal').classList.remove('hidden'); });
+            document.getElementById('close-cart').addEventListener('click', () => document.getElementById('cart-modal').classList.add('hidden'));
+            document.getElementById('checkout-btn').addEventListener('click', processCheckout);
+        }
+
+        function showToast(msg) { const toast = document.getElementById('toast'); document.getElementById('toast-msg').textContent = msg; toast.classList.remove('hidden'); setTimeout(() => toast.classList.remove('translate-y-10', 'opacity-0'), 10); setTimeout(() => { toast.classList.add('translate-y-10', 'opacity-0'); setTimeout(() => toast.classList.add('hidden'), 300); }, 3000); }
+    </script>
+</body>
+</html>
